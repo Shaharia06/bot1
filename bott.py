@@ -11,16 +11,14 @@ except ImportError:
     print("📦 python-telegram-bot লাইব্রেরি পাওয়া যায়নি, ইনস্টল করা হচ্ছে...")
     install_package("python-telegram-bot")
 
-# তোমার আসল কোড এখান থেকে শুরু
 import re
-from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram import Update, ChatMember, ChatMemberUpdated
+from telegram.ext import Application, CommandHandler, ContextTypes, ChatMemberHandler, MessageHandler
 
-BOT_TOKEN = "8135386559:AAGKbt0LjPupSmYQQ-f5_FM2JzakFuxNkAM"
+BOT_TOKEN = "7375483284:AAETWnzTxMzrAoPLUySLzcy0EcMim1l4VI0"
 ADMIN_ID = 7949308405  # শুধু এই আইডির ইউজার /info ব্যবহার করতে পারবে, /report পাবলিক
 
 def escape_markdown(text: str) -> str:
-    # MarkdownV2 এর স্পেশাল ক্যারেক্টার escape করার জন্য
     escape_chars = r'\_*[]()~`>#+-=|{}.!'
     return ''.join(f'\\{c}' if c in escape_chars else c for c in text)
 
@@ -75,15 +73,51 @@ async def report(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"👤 Reporter: {user.mention_html()}\n"
         f"📝 রিপোর্ট: {report_text}"
     )
-    # রিপোর্ট অ্যাডমিনের কাছে HTML ফরম্যাটে পাঠানো হবে
     await context.bot.send_message(chat_id=ADMIN_ID, text=msg, parse_mode="HTML")
     await update.message.reply_text("✅ রিপোর্ট পাঠানো হয়েছে। ধন্যবাদ।")
+
+# --- নতুন অংশ শুরু ---
+
+async def welcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # নতুন মেম্বার যোগ দিলে স্বাগতম বার্তা পাঠাবে
+    for member in update.message.new_chat_members:
+        name = member.first_name or "বন্ধু"
+        await update.message.reply_text(
+            f"🎉 স্বাগতম {name}! গ্রুপে আসার জন্য ধন্যবাদ। এখানে সবাই বন্ধু, মজা করো গ্রুপ রুলস মেনে চোলো! 😊"
+        )
+
+async def left(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # কেউ গ্রুপ ছেড়ে গেলে বিদায় বার্তা পাঠাবে
+    user = update.message.left_chat_member
+    if user:
+        name = user.first_name or "বন্ধু"
+        await update.message.reply_text(
+            f"👋 বিদায় {name}! আশা করি আবার আসবে।"
+        )
+
+# Alternatively, using ChatMemberHandler for member updates:
+# async def member_update(update: Update, context: ContextTypes.DEFAULT_TYPE):
+#     result = update.chat_member
+#     status = result.new_chat_member.status
+#     user = result.new_chat_member.user
+#     if status == ChatMember.MEMBER:
+#         await update.effective_chat.send_message(f"🎉 স্বাগতম {user.first_name}!")
+#     elif status == ChatMember.LEFT:
+#         await update.effective_chat.send_message(f"👋 বিদায় {user.first_name}!")
+
+# --- নতুন অংশ শেষ ---
+
 
 if __name__ == "__main__":
     app = Application.builder().token(BOT_TOKEN).build()
 
+    # কমান্ড হ্যান্ডলার
     app.add_handler(CommandHandler("info", info))
     app.add_handler(CommandHandler("report", report))
 
-    print("✅ Bot is running... /info (admin only) and /report active")
+    # নতুন মেম্বার আসলে welcome, মেম্বার গেলে left হ্যান্ডলার
+    app.add_handler(MessageHandler(filters=telegram.ext.filters.StatusUpdate.NEW_CHAT_MEMBERS, callback=welcome))
+    app.add_handler(MessageHandler(filters=telegram.ext.filters.StatusUpdate.LEFT_CHAT_MEMBER, callback=left))
+
+    print("✅ Bot is running... /info (admin only), /report, Welcome and Left message active")
     app.run_polling()
