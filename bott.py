@@ -1,133 +1,62 @@
-import subprocess
-import sys
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+import random
 
-# 🔧 লাইব্রেরি ইনস্টলার
-def install_package(package):
-    try:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", package])
-    except subprocess.CalledProcessError:
-        print(f"❌ {package} ইনস্টল করতে সমস্যা হয়েছে!")
+BOT_TOKEN = '7632441744:AAGwpaUtsjO-S4Bj9OuD8MQKTNBDCeWiah0'
 
-# 📦 দরকারি প্যাকেজ
-required_packages = [
-    "python-telegram-bot==22.1"
+# শুধু অ্যাডমিনদের ইউজার আইডি বসাও এখানে
+ADMINS = [
+    7949308405,  # তোমার আইডি বসাও
+    987654321,  # আরেকজন অ্যাডমিন
 ]
 
-# 🔁 প্যাকেজ ইনস্টলেশন চেক
-for package in required_packages:
-    try:
-        __import__(package.split("==")[0])
-    except ImportError:
-        print(f"📦 {package} ইনস্টল করা হচ্ছে...")
-        install_package(package)
+# রোস্ট লিস্ট (বগুড়া ক্রাশ অ্যান্ড কনফেশন স্টাইল)
+roasts = [
+    "😂 @{user} নাকি বগুড়ার ক্রাশ! মেয়েরা দেখলে বলে: 'এই যে ভাইয়া, রাস্তা ছাড়েন!'",
+    "🤣 @{user} এর ক্রাশ বলে: 'তোমাকে দেখে আমি আমার ex এর কথা মনে করি।'",
+    "😆 @{user} এত এক্স বানিয়েছে, এখন প্রেম করতে গেলে আগে পুলিশ ক্লিয়ারেন্স লাগে!",
+    "🥲 @{user} কনফেশন লিখতে গিয়েছিল, গ্রুপ হঠাৎ সাইলেন্ট হয়ে গেল।",
+    "👀 @{user} এর ক্রাশ এখন অন্যের বউ!",
+    "💔 @{user} নাকি প্রেম করে? ওর তো crush-ই ওকে block করে রাখে!",
+    "🫣 @{user} এর কনফেশন পড়ে মেয়েরা বলতেছে: 'এই ভাইটা নাহি থামবে তো?'",
+    "😹 @{user} এর কনফেশন দেখে বগুড়ার মেয়েরা বগুড়া ছাড়ছে!",
+    "😎 @{user} প্রেমে এমন pro যে, আজকে কনফেশন দেয়, কালকে unfriend!",
+    "🙃 @{user} এর ক্রাশ reply না দিলে বটকে কনফেশন দেয়!",
+    "🤣 @{user} এক্স এর সাথে দেখা হলে বলে: 'মাফ করে দে, জীবনে ভুল হইছে।'",
+    "😂 @{user} নাকি এক মেয়েকে ৩ বার কনফেশন দিয়েছে, মেয়ে reply দিলো: OK BRO!",
+    "😆 @{user} এর বগুড়া স্টাইল প্রেম: online শুধু, offline নাই!",
+    "🥴 @{user} কে দেখলে বগুড়ার মেয়েরা বলে: 'এটা আবার কার crush?'",
+    "🔥 @{user} এর কনফেশন এত জোস যে গ্রুপের এডমিনও হেসে কেঁদেছে।",
+    "💀 @{user} প্রেমে পড়ে কনফেশন দিলো, মেয়ে বললো 'আপনি তো আমার ভাইয়ের মতো!'",
+    "😵 @{user} নাকি এমন প্রেমিক, একদিনে তিনটা breakup!",
+    "😆 @{user} কে tag দিলেই ex, crush আর gf একসাথে লাফায়!",
+    "👻 @{user} crush কে impress করতে গিয়ে নিজের নাম ভুলে গেছে।",
+    "💘 @{user} এর প্রেম মানে: ‘তুমি reply দিলে আমি poem লিখবো, না দিলে song!’"
+]
 
-# ✅ সব ইম্পোর্ট
-import re
-from telegram import Update, ChatMemberUpdated
-from telegram.constants import ParseMode
-from telegram.ext import (
-    Application,
-    CommandHandler,
-    ContextTypes,
-    MessageHandler,
-    filters,
-    ChatMemberHandler
-)
+async def news(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.message.from_user.id
 
-# 🔐 বট টোকেন ও অ্যাডমিন আইডি
-BOT_TOKEN = "7375483284:AAGqPYBkEHfZumXVN_1KT7-HwlTQT-e8FhM"
-ADMIN_ID = 7949308405
-
-# 🔠 Markdown Escape
-def escape_markdown(text: str) -> str:
-    escape_chars = r'\_*[]()~`>#+-=|{}.!'
-    return ''.join(f'\\{c}' if c in escape_chars else c for c in text)
-
-# 👮‍♂️ অ্যাডমিন চেক
-async def is_admin(update: Update):
-    return update.effective_user.id == ADMIN_ID
-
-# 📌 /info কমান্ড
-async def info(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await is_admin(update):
-        await update.message.reply_text("⛔ বাপজান BOT কি তোমার বাপের 🙂 ? এই কমান্ড শুধুমাত্র অ্যাডমিন ব্যবহার করতে পারবে!")
+    # শুধুমাত্র ADMINS পারবে
+    if user_id not in ADMINS:
+        await update.message.reply_text("⛔ এই কমান্ডটি শুধুমাত্র অ্যাডমিনদের জন্য।")
         return
 
-    if not update.message.reply_to_message:
-        await update.message.reply_text("⚠️ কারো মেসেজে reply দিয়ে `/info` লিখো।")
+    if len(context.args) != 1:
+        await update.message.reply_text("ব্যবহার: /news @username")
         return
 
-    user = update.message.reply_to_message.from_user
-    full_name = f"{user.first_name or ''} {user.last_name or ''}".strip()
-    user_id = user.id
-    username = f"@{escape_markdown(user.username)}" if user.username else "No username"
+    target_username = context.args[0]
 
-    photos = await context.bot.get_user_profile_photos(user.id)
-    if photos.total_count > 0:
-        photo_file = photos.photos[0][-1].file_id
-        await update.message.reply_photo(
-            photo=photo_file,
-            caption=(
-                f"👤 *Full Name:* {escape_markdown(full_name)}\n"
-                f"🆔 *User ID:* `{user_id}`\n"
-                f"🔗 *Username:* {username}"
-            ),
-            parse_mode=ParseMode.MARKDOWN_V2
-        )
-    else:
-        await update.message.reply_text(
-            f"👤 *Full Name:* {escape_markdown(full_name)}\n"
-            f"🆔 *User ID:* `{user_id}`\n"
-            f"🔗 *Username:* {username}",
-            parse_mode=ParseMode.MARKDOWN_V2
-        )
+    if not target_username.startswith('@'):
+        target_username = '@' + target_username
 
-# 📝 /report কমান্ড
-async def report(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not context.args:
-        await update.message.reply_text(
-            "❌ রিপোর্টের টেক্সট লিখো, যেমন:\nউদাহরণঃ /report <তোমার রিপোর্ট>"
-        )
-        return
+    roast_line = random.choice(roasts).replace("{user}", target_username.lstrip('@'))
+    await update.message.reply_text(roast_line)
 
-    report_text = ' '.join(context.args)
-    user = update.effective_user
-    msg = (
-        f"📩 নতুন রিপোর্ট এসেছে:\n\n"
-        f"👤 Reporter: {user.mention_html()}\n"
-        f"📝 রিপোর্ট: {report_text}"
-    )
-    await context.bot.send_message(chat_id=ADMIN_ID, text=msg, parse_mode=ParseMode.HTML)
-    await update.message.reply_text("✅ রিপোর্ট পাঠানো হয়েছে। ধন্যবাদ।")
+if __name__ == '__main__':
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    app.add_handler(CommandHandler("news", news))
 
-# 🎉 নতুন মেম্বার এলে স্বাগতম
-async def welcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    for member in update.message.new_chat_members:
-        name = member.first_name or "বন্ধু"
-        await update.message.reply_text(
-            f"🎉 স্বাগতম {name}! গ্রুপে আসার জন্য ধন্যবাদ। এখানে সবাই বন্ধু, মজা করো গ্রুপ রুলস মেনে চলো! 😊"
-        )
-
-# 👋 মেম্বার বের হলে বিদায়
-async def left(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.message.left_chat_member
-    if user:
-        name = user.first_name or "বন্ধু"
-        await update.message.reply_text(
-            f"👋 বিদায় {name}! আশা করি আবার আসবে।"
-        )
-
-# 🏁 বট চালু
-if __name__ == "__main__":
-    app = Application.builder().token(BOT_TOKEN).build()
-
-    # ✅ কমান্ড হ্যান্ডলার
-    app.add_handler(CommandHandler("info", info))
-    app.add_handler(CommandHandler("report", report))
-
-    # 👥 মেম্বার এন্ট্রি ও এক্সিট
-    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
-    app.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, left))
-
-    print("✅ Bot is running... /info (admin only), /report, Welcome and Left message active")
+    print("🔥 বগুড়া ক্রাশ বট চালু!")
     app.run_polling()
